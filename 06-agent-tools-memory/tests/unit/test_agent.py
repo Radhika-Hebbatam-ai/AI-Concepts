@@ -25,7 +25,24 @@ def test_agent_calls_multiply_tool() -> None:
     )
     agent = build_agent(llm)
 
-    result = agent.invoke({"messages": [{"role": "user", "content": "What is 4837 * 219?"}]})
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": "What is 4837 * 219?"}]},
+        config={"configurable": {"thread_id": "test"}},
+    )
 
     assert result["messages"][2].content == "1059303.0"
     assert result["messages"][-1].content == "The answer is 1059303"
+
+
+def test_agent_remembers_within_same_session() -> None:
+    llm = FakeLLM(messages=iter([AIMessage(content="Noted"), AIMessage(content="It is 50")]))
+    agent = build_agent(llm)
+    config = {"configurable": {"thread_id": "session-1"}}
+
+    agent.invoke({"messages": [{"role": "user", "content": "My number is 50"}]}, config=config)
+    result = agent.invoke(
+        {"messages": [{"role": "user", "content": "What is my number?"}]}, config=config
+    )
+
+    contents = [m.content for m in result["messages"]]
+    assert "My number is 50" in contents

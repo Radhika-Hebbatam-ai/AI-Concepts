@@ -1,4 +1,7 @@
 import time
+import uuid
+
+import structlog
 
 from agent_core.config import Settings
 from agent_core.infrastructure.agent import build_agent
@@ -12,6 +15,9 @@ def main() -> None:
     logger = get_logger()
     llm = create_chat_model(settings)
     agent = build_agent(llm)
+    session_id = str(uuid.uuid4())
+    structlog.contextvars.bind_contextvars(session_id=session_id)
+    config = {"configurable": {"thread_id": session_id}}
 
     print("Ask a question (type 'exit' to quit)")
     while True:
@@ -20,7 +26,7 @@ def main() -> None:
             break
 
         start = time.perf_counter()
-        result = agent.invoke({"messages": [{"role": "user", "content": question}]})
+        result = agent.invoke({"messages": [{"role": "user", "content": question}]}, config=config)
         latency_ms = round((time.perf_counter() - start) * 1000)
 
         answer = result["messages"][-1].content
