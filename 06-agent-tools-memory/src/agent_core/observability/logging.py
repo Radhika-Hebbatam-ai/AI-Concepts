@@ -17,3 +17,12 @@ def configure_logging(level: str = "INFO") -> None:
 
 def get_logger() -> Any:
     return structlog.get_logger()
+
+
+def log_tool_calls(messages: list[Any]) -> None:
+    logger = get_logger()
+    for message in messages:
+        for call in getattr(message, "tool_calls", None) or []:
+            logger.info("tool_called", tool=call["name"], args=call["args"])
+        if type(message).__name__ == "ToolMessage":
+            logger.info("tool_result", tool=message.name, result=message.content)

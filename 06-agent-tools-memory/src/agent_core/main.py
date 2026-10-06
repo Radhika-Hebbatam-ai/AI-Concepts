@@ -1,8 +1,9 @@
 import time
 
 from agent_core.config import Settings
+from agent_core.infrastructure.agent import build_agent
 from agent_core.infrastructure.llm import create_chat_model
-from agent_core.observability.logging import configure_logging, get_logger
+from agent_core.observability.logging import configure_logging, get_logger, log_tool_calls
 
 
 def main() -> None:
@@ -10,6 +11,7 @@ def main() -> None:
     configure_logging(settings.log_level)
     logger = get_logger()
     llm = create_chat_model(settings)
+    agent = build_agent(llm)
 
     print("Ask a question (type 'exit' to quit)")
     while True:
@@ -18,11 +20,13 @@ def main() -> None:
             break
 
         start = time.perf_counter()
-        response = llm.invoke(question)
+        result = agent.invoke({"messages": [{"role": "user", "content": question}]})
         latency_ms = round((time.perf_counter() - start) * 1000)
 
-        logger.info("llm_called", model=settings.groq_model, latency_ms=latency_ms)
-        print(f"AI: {response.content}")
+        answer = result["messages"][-1].content
+        log_tool_calls(result["messages"])
+        logger.info("agent_called", model=settings.groq_model, latency_ms=latency_ms)
+        print(f"AI: {answer}")
 
 
 if __name__ == "__main__":
